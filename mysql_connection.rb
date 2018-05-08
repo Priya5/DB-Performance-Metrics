@@ -12,7 +12,7 @@ class MySQLConnection
 
   def truncate(table_name)
     @conn.query('SET FOREIGN_KEY_CHECKS = 0;')
-    @conn.query("truncate #{table_name} commits RESTART IDENTITY cascade;")
+    @conn.query("truncate #{table_name};")
     @conn.query('SET FOREIGN_KEY_CHECKS = 1;')
   end
 end
