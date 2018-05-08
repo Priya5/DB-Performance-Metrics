@@ -31,7 +31,7 @@ class WritePerformance
   def generate(max_limit = 10)
     truncate_tables(TABLE_NAMES)
     prepare_insert_queries(max_limit)
-    puts @query_list.values.collect{|c| c[:source_query]}
+    puts @query_list.values.collect{|c| c[:count]}
     @query_list.each do |table_name, data|
       time_taken = 0
       data[:insert_statements].each do |statement|
@@ -39,7 +39,6 @@ class WritePerformance
       end
       data[:time_taken] = time_taken
     end
-    @query_list
   end
 
   
@@ -59,6 +58,7 @@ class WritePerformance
 
     forked_project_join = "left join projects FP on FP.id = P.forked_from"
     max_project_id = max_id("select P.id from projects P #{forked_project_join} where P.owner_id <= #{max_user_id} and (FP.owner_id is null or FP.owner_id <= #{max_user_id})", max_limit)
+    project_ids = "select P.id from projects P #{forked_project_join} where P.owner_id <= #{max_user_id} and (FP.owner_id is null or FP.owner_id <= #{max_user_id}) limit #{max_limit}"
     forked_project_join_conditions = "(FP.owner_id is null or FP.owner_id <= #{max_user_id} and FP.forked_from < #{max_project_id})"
 
     @query_list[:projects][:source_query] = [
@@ -72,6 +72,7 @@ class WritePerformance
     commit_conditions = "C.author_id <= #{max_user_id} and C.committer_id <= #{max_user_id} and (C.project_id is null or C.project_id <= #{max_project_id}) and (P.owner_id is null or P.owner_id <= #{max_user_id}) and #{forked_project_join_conditions}"
     max_commit_id = max_id("select C.id from commits C left join projects P on P.id = C.project_id #{forked_project_join} where #{commit_conditions}", max_limit)
 
+    commit_ids = "select C.id from commits C left join projects P on P.id = C.project_id #{forked_project_join} where #{commit_conditions} limit #{max_limit}"
     @query_list[:commits][:source_query] = "select C.* from commits C left join projects P on P.id = C.project_id #{forked_project_join} where #{commit_conditions} and C.id <= #{max_commit_id};"
     @query_list[:repo_milestones][:source_query] = "select RM.* from repo_milestones RM inner join projects P on P.id = RM.repo_id #{forked_project_join} where RM.repo_id <= #{max_project_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} limit #{max_limit};"
 
@@ -80,18 +81,21 @@ class WritePerformance
     
     @query_list[:repo_labels][:source_query] = "select RL.* from repo_labels RL inner join projects P on P.id = RL.repo_id #{forked_project_join} where #{label_conditions} and RL.id < #{max_label_id};"
     @query_list[:project_languages][:source_query] = "select PL.* from project_languages PL inner join projects P on P.id = PL.project_id #{forked_project_join} where PL.project_id <= #{max_project_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} limit #{max_limit};" 
-    @query_list[:project_topics][:source_query] = "select PT.* from project_topics PT inner join projects P on P.id = PT.project_id #{forked_project_join} where PT.project_id <= #{max_project_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} limit #{max_limit};" 
-    @query_list[:commit_comments][:source_query] = "select * from commit_comments where user_id <= #{max_user_id} and commit_id <= #{max_commit_id} limit #{max_limit};" 
-    @query_list[:commit_parents][:source_query] = "select * from commit_parents where parent_id <= #{max_commit_id} and commit_id <= #{max_commit_id} limit #{max_limit};" 
-    @query_list[:project_commits][:source_query] = "select PC.* from project_commits PC inner join projects P on P.id = PC.project_id #{forked_project_join} where PC.project_id <= #{max_project_id} and PC.commit_id <= #{max_commit_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} limit #{max_limit};" 
+    @query_list[:project_topics][:source_query] = "select PT.* from project_topics PT inner join projects P on P.id = PT.project_id #{forked_project_join} where PT.project_id <= #{max_project_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} limit #{max_limit};"
     
-    pull_request_conditions = "(head_repo_id is null or head_repo_id <= #{max_project_id}) and base_repo_id <= #{max_project_id} and (head_commit_id is null or head_commit_id <= #{max_commit_id}) and base_commit_id <= #{max_commit_id}"
+    @query_list[:commit_comments][:source_query] = "select CM.* from commit_comments CM inner join commits C on C.id = CM.commit_id left join projects P on P.id = C.project_id #{forked_project_join} where user_id <= #{max_user_id} and CM.commit_id <= #{max_commit_id} and #{commit_conditions} limit #{max_limit};"
+
+    @query_list[:commit_parents][:source_query] = "select CP.* from commit_parents CP inner join commits C on C.id = CP.commit_id left join projects P on P.id = C.project_id left join projects FP on FP.id = P.forked_from where CP.parent_id <= #{max_commit_id} and CP.commit_id <= #{max_commit_id} and C.author_id <= #{max_user_id} and C.committer_id <= #{max_user_id} and (C.project_id is null or C.project_id <= #{max_project_id}) and (P.owner_id is null or P.owner_id <= #{max_user_id}) and (FP.owner_id is null or FP.owner_id <= #{max_user_id} and FP.forked_from < #{max_project_id}) and CP.parent_id in (select CP.parent_id from commit_parents CP inner join commits C on C.id = CP.parent_id left join projects P on P.id = C.project_id left join projects FP on FP.id = P.forked_from where CP.parent_id <= #{max_commit_id} and CP.commit_id <= #{max_commit_id} and C.author_id <= #{max_user_id} and C.committer_id <= #{max_user_id} and (C.project_id is null or C.project_id <= #{max_project_id}) and (P.owner_id is null or P.owner_id <= #{max_user_id}) and (FP.owner_id is null or FP.owner_id <= #{max_user_id} and FP.forked_from < #{max_project_id}) limit #{max_limit}) limit #{max_limit};"
+    @query_list[:project_commits][:source_query] = "select PC.* from project_commits PC inner join projects P on P.id = PC.project_id #{forked_project_join} where PC.project_id <= #{max_project_id} and PC.commit_id <= #{max_commit_id} and P.owner_id <= #{max_user_id} and #{forked_project_join_conditions} and PC.commit_id in (#{commit_ids}) limit #{max_limit};" 
+    
+    pull_request_conditions = "(head_repo_id is null or head_repo_id in (#{project_ids})) and base_repo_id in (#{project_ids}) and (head_commit_id is null or head_commit_id <= #{max_commit_id}) and base_commit_id <= #{max_commit_id}"
     max_pull_request_id =  max_id("select id from pull_requests PR where #{pull_request_conditions}", max_limit)
+    pull_request_ids = "select PR.id from pull_requests PR where #{pull_request_conditions} limit #{max_limit}"
 
     @query_list[:pull_requests][:source_query] = "select * from pull_requests where #{pull_request_conditions} and id <= #{max_pull_request_id};"
-    @query_list[:pull_request_comments][:source_query] = "select * from pull_request_comments where user_id <= #{max_user_id} and commit_id <= #{max_commit_id} and pull_request_id <= #{max_pull_request_id} limit #{max_limit};"
-    @query_list[:pull_request_commits][:source_query] = "select * from pull_request_commits where commit_id <= #{max_commit_id} and pull_request_id <= #{max_pull_request_id} limit #{max_limit};"
-    @query_list[:pull_request_history][:source_query] = "select * from pull_request_history where (actor_id is null or actor_id <= #{max_user_id}) and pull_request_id <= #{max_pull_request_id} limit #{max_limit};"
+    @query_list[:pull_request_comments][:source_query] = "select * from pull_request_comments where user_id <= #{max_user_id} and commit_id <= #{max_commit_id} and pull_request_id in (#{pull_request_ids}) limit #{max_limit};"
+    @query_list[:pull_request_commits][:source_query] = "select * from pull_request_commits where commit_id <= #{max_commit_id} and pull_request_id in (#{pull_request_ids}) limit #{max_limit};"
+    @query_list[:pull_request_history][:source_query] = "select * from pull_request_history where (actor_id is null or actor_id <= #{max_user_id}) and pull_request_id in (#{pull_request_ids}) limit #{max_limit};"
 
     issue_conditions = "assignee_id <= #{max_user_id} and pull_request_id <= #{max_pull_request_id} and reporter_id <= #{max_user_id} and repo_id <= #{max_project_id}"
     max_issue_id = max_id("select id from issues where #{issue_conditions}", max_limit)
