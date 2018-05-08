@@ -1,0 +1,6 @@
+source 'https://rubygems.org'
+gem 'mysql'
+gem 'faker'
+gem 'pry'
+gem 'pg'
+gem 'dotenv', '~> 2.2', '>= 2.2.1'
