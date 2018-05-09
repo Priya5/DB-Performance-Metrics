@@ -11,8 +11,16 @@ class MySQLConnection
   end
 
   def truncate(table_name)
-    @conn.query('SET FOREIGN_KEY_CHECKS = 0;')
+    disable_trigger
     @conn.query("truncate #{table_name};")
+    enable_trigger
+  end
+
+  def disable_trigger(table_name=nil)
+    @conn.query('SET FOREIGN_KEY_CHECKS = 0;')
+  end
+  
+  def enable_trigger(table_name=nil)
     @conn.query('SET FOREIGN_KEY_CHECKS = 1;')
   end
 end
