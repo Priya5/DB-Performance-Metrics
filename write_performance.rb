@@ -29,19 +29,24 @@ class WritePerformance
     TABLE_NAMES.each{|table_name| @query_list[table_name] = {} }
   end
   
-  def generate(max_limit = 10)
+  def generate(max_limit = 100)
+    query = nil
     truncate_tables(TABLE_NAMES)
     prepare_insert_queries(max_limit)
     @query_list.each do |table_name, data|
       @conn.disable_trigger(table_name.to_s) if table_name == :projects
       time_taken = 0
       data[:insert_statements].each do |statement|
+        query = statement
         time_taken += Benchmark.realtime { @conn.execute(statement) }
       end
       data[:time_taken] = time_taken
       @conn.enable_trigger(table_name.to_s) if table_name == :projects
     end
-    @query_list.collect{|k,c| [k,c[:count]] }
+    @query_list.collect{|k,c| [k,c[:time_taken], c[:count]] }
+  rescue => error
+    puts error
+    puts query
   end
  
   private
@@ -87,7 +92,7 @@ class WritePerformance
     @query_list[:pull_request_commits][:source_query] = "select * from pull_request_commits where commit_id in (#{commit_ids}) and pull_request_id in (#{pull_request_ids}) limit #{max_limit};"
     @query_list[:pull_request_history][:source_query] = "select * from pull_request_history where (actor_id is null or actor_id in (#{user_ids})) and pull_request_id in (#{pull_request_ids}) limit #{max_limit};"
 
-    issue_ids = get_ids("select id from issues where assignee_id in (#{user_ids}) and pull_request_id in (#{pull_request_ids}) and reporter_id in (#{user_ids}) and repo_id in (#{project_ids})", max_limit)
+    issue_ids = get_ids("select id from issues where (assignee_id is null or assignee_id in (#{user_ids})) and (pull_request_id is null or pull_request_id in (#{pull_request_ids})) and (reporter_id is null or reporter_id in (#{user_ids})) and repo_id in (#{project_ids})", max_limit)
     @query_list[:issues][:source_query] = "select * from issues where id in (#{issue_ids});"
 
     @query_list[:issue_labels][:source_query] = "select * from issue_labels where label_id in (#{issue_ids}) and issue_id in (#{issue_ids}) limit #{max_limit};"
@@ -109,7 +114,11 @@ class WritePerformance
   
   def prepare_insert_statements(table_name, source_query)
     data = @source_conn.execute(source_query).collect{ |attributes| attributes.values.map{|val| val.gsub("'", %q(\\\')) if val} }
-    data.collect{|values| "INSERT INTO #{table_name.to_s} VALUES('#{values.join("','")}');".gsub("''", 'null').gsub("\\'", "''") }
+    data.collect do |values|
+      query = "INSERT INTO #{table_name.to_s} VALUES('#{values.join("','")}');".gsub("''", 'null').gsub("\\'", "''").gsub(/1970-01-01 [0-9]+:[0-9]+:[0-9]+/, '1970-02-01 00:00:00')
+      query = query.gsub("'f'", "0").gsub("'t'", "1") if @conn.class == MySQLConnection
+      query
+    end
   end
 
   def csv_report(data={})
