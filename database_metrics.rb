@@ -8,7 +8,7 @@ require 'csv'
 require 'byebug'
 
 class DatabaseMetrics
-  def initialize(source_db_max_record_limit, duration=nil)
+  def initialize(source_db_max_record_limit)
     source_options = { host: ENV["SOURCE_DB_HOST"],
                        username: ENV["SOURCE_DB_USERNAME"],
                        password: ENV["SOURCE_DB_PASSWORD"],
@@ -17,7 +17,6 @@ class DatabaseMetrics
     
     @source_conn = PGConnection.new(source_options)
     @limit = source_db_max_record_limit
-    @duration = duration
     @current_timestamp = Time.now.to_i
     @directory_name = "data/source/#{@current_timestamp}"
     Dir.mkdir(@directory_name) unless File.exists?(@directory_name)
