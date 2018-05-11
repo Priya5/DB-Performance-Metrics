@@ -31,11 +31,11 @@ MYSQL_DB_PORT =
 
 ```ruby
 bundle install
-ruby database_metrics.rb
+ruby generate_metrics
 ```
 
 ```ruby
-ruby database_metrics.rb source_db_record_fetch_limit
+ruby generate_metrics source_db_record_fetch_limit
 ```
 
 Here, `source_db_record_fetch_limit` is a integer value for setting the max limit of records fetched from source database to populate the destination(MySQL/PostgreSQL) database.

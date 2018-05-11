@@ -1,0 +1,2 @@
+require './database_metrics.rb'
+DatabaseMetrics.new(ARGV[0] || 100).generate

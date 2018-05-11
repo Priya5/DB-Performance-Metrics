@@ -110,4 +110,3 @@ class DatabaseMetrics
     data.collect { |values| "INSERT INTO #{table_name.to_s} VALUES('#{values.join("','")}');".gsub("''", 'null').gsub("\\'", "''").gsub(/1970-01-01 [0-9]+:[0-9]+:[0-9]+/, '1970-02-01 00:00:00') }
   end
 end
-DatabaseMetrics.new(ARGV[0] || 100).generate
