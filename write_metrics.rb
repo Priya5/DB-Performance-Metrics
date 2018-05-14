@@ -8,7 +8,7 @@ require 'benchmark'
 class WriteMetrics
   TABLE_NAMES = [:users, :organization_members, :followers, :projects, :watchers, :project_members, :commits, :repo_milestones, :repo_labels, :project_languages, :project_topics, :commit_comments, :commit_parents, :project_commits, :pull_requests, :pull_request_comments, :pull_request_commits, :pull_request_history, :issues, :issue_labels, :issue_comments, :issue_events].freeze
   
-  def initialize(db_adapter = 'pg', timestamp)
+  def initialize(db_adapter = 'pg', timestamp, filename)
     options = { host: ENV["#{db_adapter.upcase}_DB_HOST"],
                 username: ENV["#{db_adapter.upcase}_DB_USERNAME"],
                 password: ENV["#{db_adapter.upcase}_DB_PASSWORD"],
@@ -18,6 +18,7 @@ class WriteMetrics
     conn_class = db_adapter == 'mysql' ? MySQLConnection : PGConnection
     @conn = conn_class.new(options)
     @db_adapter = db_adapter
+    @filename = filename
     @timestamp = timestamp
     @directory_name = "data/results/#{@timestamp}"
     Dir.mkdir(@directory_name) unless File.exists?(@directory_name)
@@ -35,7 +36,7 @@ class WriteMetrics
   end
   
   def generate_write_metrics_csv
-    source_csv = CSV.read("data/source/#{@timestamp}/queries.csv", headers: true)
+    source_csv = CSV.read("data/source/csv/#{@filename}.csv", headers: true)
     queries = source_csv['Query']
     total_time_taken = 0
     
@@ -64,8 +65,8 @@ class WriteMetrics
     filename = 'data/results/write.csv'
 
     CSV.open(filename, 'a+') do |csv|
-      csv << ['Database', 'Query count', 'Total Time Taken in millisecond'] if CSV.read(filename).empty?
-      csv << [@db_adapter, count, time * 1000]
+      csv << ['Database', 'Query count', 'Total Time Taken in millisecond', 'Current Time'] if CSV.read(filename).empty?
+      csv << [@db_adapter, count, time * 1000, Time.now]
     end
   end
 end

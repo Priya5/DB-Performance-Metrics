@@ -42,8 +42,8 @@ class ReadMetrics
     filename = 'data/results/read.csv'
     
     CSV.open(filename, 'a+') do |csv|
-      csv << ['Database', 'Query count', 'Total Time Taken in millisecond'] if CSV.read(filename).empty?
-      csv << [@db_adapter, count, time * 1000]
+      csv << ['Database', 'Query count', 'Total Time Taken in millisecond', 'Current Time'] if CSV.read(filename).empty?
+      csv << [@db_adapter, count, time * 1000, Time.now]
     end
   end
 end

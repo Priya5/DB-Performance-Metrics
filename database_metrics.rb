@@ -18,12 +18,12 @@ class DatabaseMetrics
     @source_conn = PGConnection.new(source_options)
     @limit = source_db_max_record_limit
     @current_timestamp = Time.now.to_i
-    @directory_name = "data/source/#{@current_timestamp}"
+    @directory_name = "data/source/csv"
     Dir.mkdir(@directory_name) unless File.exists?(@directory_name)
   end
 
   def generate
-    generate_insert_queries_csv
+    generate_insert_queries_csv unless File.exists?("#{@directory_name}/#{@limit}.csv")
     generate_write_metrics
     generate_read_metrics
   end
@@ -31,8 +31,8 @@ class DatabaseMetrics
   private
 
   def generate_write_metrics
-    WriteMetrics.new('pg', @current_timestamp).generate
-    WriteMetrics.new('mysql', @current_timestamp).generate
+    WriteMetrics.new('pg', @current_timestamp, @limit).generate
+    WriteMetrics.new('mysql', @current_timestamp, @limit).generate
   end
 
   def generate_read_metrics
@@ -41,7 +41,7 @@ class DatabaseMetrics
   end
   
   def generate_insert_queries_csv
-    CSV.open("#{@directory_name}/queries.csv", 'wb') do |csv|
+    CSV.open("#{@directory_name}/#{@limit}.csv", 'wb') do |csv|
       csv << ['Table Name', 'Query']
       source_queries_hash.each do |table_name, query|
         insert_statements = prepare_insert_statements(table_name, query)
