@@ -1,9 +1,8 @@
-require 'mysql'
+require 'mysql2'
 
 class MySQLConnection
   def initialize(options={})
-    #Mysql.new(@host, @user, @pass, @db, @port, @sock, @flag)
-    @conn = Mysql.new(options[:host], options[:username], options[:password], options[:dbname])
+    @conn = Mysql2::Client.new(database: options[:dbname], host: options[:host], port: options[:port], username: options[:username], password: options[:password])
   end
   
   def execute(query)

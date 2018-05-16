@@ -1,6 +1,5 @@
 source 'https://rubygems.org'
-gem 'mysql'
-gem 'faker'
+gem 'mysql2'
 gem 'byebug', '~> 9.0', '>= 9.0.6'
 gem 'pg'
 gem 'dotenv', '~> 2.2', '>= 2.2.1'
