@@ -106,7 +106,7 @@ class DatabaseMetrics
   end
   
   def prepare_insert_statements(table_name, source_query)
-    data = @source_conn.execute(source_query).collect{ |attributes| attributes.values.map{|val| val.gsub("'", %q(\\\')) if val} }
-    data.collect { |values| "INSERT INTO #{table_name.to_s} VALUES('#{values.join("','")}');".gsub("\\'", "''").gsub(",''", ',null').gsub(/1970-01-01 [0-9]+:[0-9]+:[0-9]+/, '1970-02-01 00:00:00') }
+    data = @source_conn.execute(source_query).collect{ |attributes| attributes.values.map {|val| val ? val.gsub("'", %q(\\\')) : 'null' } }
+    data.collect { |values| "INSERT INTO #{table_name.to_s} VALUES('#{values.join("','")}');".gsub("\\'", "''").gsub("'null'", 'null').gsub(/1970-01-01 [0-9]+:[0-9]+:[0-9]+/, '1970-02-01 00:00:00') }
   end
 end
