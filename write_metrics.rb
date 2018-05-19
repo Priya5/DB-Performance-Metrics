@@ -40,29 +40,26 @@ class WriteMetrics
     queries = source_csv['Query']
     total_time_taken = 0
     q = nil
+
+    @conn.disable_trigger('projects')
     
     CSV.open("#{@directory_name}/#{@db_adapter}_write.csv", 'wb') do |csv|
       csv << ['Query', 'Time Taken in seconds']
       
       queries.each do |query|
-        query_index = source_csv['Query'].find_index(query)
-        table_name = source_csv['Table Name'][query_index]
-
-        @conn.disable_trigger(table_name.to_s) if table_name.to_sym == :projects
-
         query = query.gsub("'f'", "0").gsub("'t'", "1") if @conn.class == MySQLConnection
         q = query
         time_taken = Benchmark.realtime { @conn.execute(query) }
-
-        @conn.enable_trigger(table_name.to_s) if table_name.to_sym == :projects
         total_time_taken = total_time_taken + time_taken
         csv << [query, time_taken]
       end
       csv << ['Total Time Taken in seconds', total_time_taken]
     end
+    @conn.enable_trigger('projects')
     generate_total_execution_time_csv(queries.length, total_time_taken)
   rescue => e
     puts q
+    raise q
   end
   
   def generate_total_execution_time_csv(count, time)
