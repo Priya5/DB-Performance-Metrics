@@ -1,0 +1,6 @@
+branches:
+  except:
+    - master
+language: generic
+env:
+- DB=postgresql
